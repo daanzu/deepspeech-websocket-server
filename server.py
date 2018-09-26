@@ -49,6 +49,7 @@ def echo(ws):
             text = model.finishStream(sctx)
             logger.info("recognized: %r", text)
             ws.send(text)
+            sctx = model.setupStream()
         else:
             logger.warning("dead websocket")
             break
