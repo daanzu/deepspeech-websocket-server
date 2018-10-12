@@ -154,7 +154,7 @@ def main_test():
 
 
 def main():
-    websocket = WebSocket('ws://localhost:8080/websocket')
+    websocket = WebSocket(ARGS.server)
     # TODO: compress?
     ready = False
 
@@ -196,6 +196,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--test", action="store_true")
+    parser.add_argument("-s", "--server", default="ws://localhost:8080/websocket")
     global ARGS
     ARGS = parser.parse_args()
 

@@ -1,14 +1,17 @@
 # DeepSpeech WebSocket Server
 
-This is a [WebSocket](https://en.wikipedia.org/wiki/WebSocket) server for Mozilla's [DeepSpeech](https://github.com/mozilla/DeepSpeech), to allow easy real-time speech recognition, using a separate client & server that can be run in different environments, either locally or remotely.
+This is a [WebSocket](https://en.wikipedia.org/wiki/WebSocket) server (& client) for Mozilla's [DeepSpeech](https://github.com/mozilla/DeepSpeech), to allow easy real-time speech recognition, using a separate client & server that can be run in different environments, either locally or remotely.
+
+Work in progress. Developed to quickly test new DeepSpeech models running DeepSpeech in [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/about) using microphone input from host Windows.
 
 ## Features
 
 * Server
     - Streams raw audio data from client via WebSocket
     - Streaming inference via DeepSpeech v0.2+
+    - Single-user (issues with concurrent streams)
 * Client
-    - Streams raw audio data from microphone via WebSocket
+    - Streams raw audio data from microphone to server via WebSocket
     - Voice activity detection (VAD) to ignore noise and segment microphone input into separate utterances
 
 ## Installation
