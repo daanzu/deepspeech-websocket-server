@@ -1,16 +1,20 @@
 import time, logging
 import threading, collections, queue
-import pyaudio, wave
+import wave
+import pyaudio
+from lomond import WebSocket, events
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=30,
+    format="%(asctime)s.%(msecs)03d: %(name)s: %(levelname)s: %(funcName)s(): %(message)s",
+    datefmt="%Y-%m-%d %p %I:%M:%S",
+    )
+logging.getLogger('lomond').setLevel(30)
 
 FORMAT = pyaudio.paInt16
 RATE = 16000
 CHANNELS = 1
 BLOCKS_PER_SECOND = 50
-BLOCK_SIZE = 80
-# BLOCK_SIZE = 2000
-# BLOCK_SIZE = RATE / 10
 BLOCK_SIZE = int(RATE / float(BLOCKS_PER_SECOND))
 
 class Audio(object):
@@ -58,20 +62,19 @@ class Audio(object):
         audio.destroy()
 
 class VADAudio(Audio):
-    def __init__(self, consumer, aggressiveness):
+    def __init__(self, consumer=None, aggressiveness=3):
         super().__init__()
-        self.aggressiveness = aggressiveness
         import webrtcvad
         self.vad = webrtcvad.Vad(aggressiveness)
-
-        t = threading.Thread(target=consumer, args=(self, self.vad_collector(100),))
-        t.start()
+        if consumer:
+            t = threading.Thread(target=consumer, args=(self, self.vad_collector(300),))
+            t.start()
 
     def frame_generator(self):
         while self.stream.is_active():
             yield self.stream.read(self.block_size)
 
-    def vad_collector(self, pre_padding_ms, frames=None):
+    def vad_collector_simple(self, pre_padding_ms, frames=None):
         if frames is None: frames = self.frame_generator()
         num_padding_frames = pre_padding_ms // self.frame_duration_ms
         buff = collections.deque(maxlen=num_padding_frames)
@@ -98,46 +101,107 @@ class VADAudio(Audio):
                     yield None
                     buff.append(frame)
 
+    def vad_collector(self, padding_ms, ratio=0.75, frames=None):
+        if frames is None: frames = self.frame_generator()
+        num_padding_frames = padding_ms // self.frame_duration_ms
+        ring_buffer = collections.deque(maxlen=num_padding_frames)
+        triggered = False
 
-from lomond import WebSocket, events
-websocket = WebSocket('ws://localhost:8080/websocket')
-# TODO: compress?
-ready = False
+        for frame in frames:
+            is_speech = self.vad.is_speech(frame, self.sample_rate)
 
-def consumer(self, frames):
-    length_ms = 0
-    for frame in frames:
-        if ready and websocket.is_active:
-            if frame is not None:
-                logging.log(5, "sending frame")
-                websocket.send_binary(frame)
-                length_ms += self.frame_duration_ms
+            if not triggered:
+                ring_buffer.append((frame, is_speech))
+                num_voiced = len([f for f, speech in ring_buffer if speech])
+                if num_voiced > ratio * ring_buffer.maxlen:
+                    triggered = True
+                    for f, s in ring_buffer:
+                        yield f
+                    ring_buffer.clear()
+
             else:
-                logging.log(5, "sending EOS")
-                logging.info("sent audio length_ms: %d" % length_ms)
-                length_ms = 0
-                websocket.send_text('EOS')
-VADAudio(consumer, 1)
+                yield frame
+                ring_buffer.append((frame, is_speech))
+                num_unvoiced = len([f for f, speech in ring_buffer if not speech])
+                if num_unvoiced > ratio * ring_buffer.maxlen:
+                    triggered = False
+                    yield None
+                    ring_buffer.clear()
 
-def on_event(event):
-    if isinstance(event, events.Ready):
-        global ready
-        ready = True
-    elif isinstance(event, events.Text):
-        print("Recognized: %s" % event.text)
+    @classmethod
+    def vad_test(cls, aggressiveness):
+        self = cls(aggressiveness=aggressiveness)
+        frames = self.frame_generator()
+        for frame in frames:
+            is_speech = self.vad.is_speech(frame, self.sample_rate)
+            print('|' if is_speech else '.', end='', flush=True)
+
+
+def main_test():
+    if 0:
+        def consumer(self, frames):
+            length_ms = 0
+            for frame in frames:
+                if frame is not None:
+                    print('|', end='', flush=True)
+                    length_ms += self.frame_duration_ms
+                else:
+                    print('.', end='', flush=True)
+                    length_ms = 0
+        VADAudio(consumer)
     elif 1:
-        logging.debug(event)
+        VADAudio.vad_test(3)
 
-logging.basicConfig(level=10,
-    format="%(asctime)s.%(msecs)03d: %(name)s: %(levelname)s: %(funcName)s(): %(message)s",
-    datefmt="%Y-%m-%d %p %I:%M:%S",
-    )
-logging.getLogger().setLevel(10)
-logging.getLogger('lomond').setLevel(30)
 
-for event in websocket:
-    try:
-        on_event(event)
-    except:
-        logger.exception('error handling %r', event)
-        websocket.close()
+def main():
+    websocket = WebSocket('ws://localhost:8080/websocket')
+    # TODO: compress?
+    ready = False
+
+    def consumer(self, frames):
+        length_ms = 0
+        for frame in frames:
+            if ready and websocket.is_active:
+                if frame is not None:
+                    logging.log(5, "sending frame")
+                    websocket.send_binary(frame)
+                    length_ms += self.frame_duration_ms
+                else:
+                    logging.log(5, "sending EOS")
+                    logging.info("sent audio length_ms: %d" % length_ms)
+                    length_ms = 0
+                    websocket.send_text('EOS')
+    VADAudio(consumer)
+
+    print("Listening...")
+
+    def on_event(event):
+        if isinstance(event, events.Ready):
+            nonlocal ready
+            ready = True
+        elif isinstance(event, events.Text):
+            print("Recognized: %s" % event.text)
+        elif 1:
+            logging.debug(event)
+
+    for event in websocket:
+        try:
+            on_event(event)
+        except:
+            logger.exception('error handling %r', event)
+            websocket.close()
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--test", action="store_true")
+    global ARGS
+    ARGS = parser.parse_args()
+
+    # logging.getLogger().setLevel(10)
+
+    if ARGS.test:
+        main_test()
+    else:
+        main()
