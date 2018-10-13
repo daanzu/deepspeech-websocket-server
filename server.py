@@ -60,8 +60,8 @@ if ARGS.lm and ARGS.trie:
                               LM_WEIGHT,
                               VALID_WORD_COUNT_WEIGHT)
 
-@get('/websocket', apply=[websocket])
-def echo(ws):
+@get('/recognize', apply=[websocket])
+def recognize(ws):
     logger.debug("new websocket")
     sctx = model.setupStream()
     while True:

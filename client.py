@@ -195,8 +195,8 @@ def main():
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--server", default="ws://localhost:8080/websocket",
-        help="Default: ws://localhost:8080/websocket")
+    parser.add_argument("-s", "--server", default="ws://localhost:8080/recognize",
+        help="Default: ws://localhost:8080/recognize")
     global ARGS
     ARGS = parser.parse_args()
     # logging.getLogger().setLevel(10)
