@@ -68,18 +68,19 @@ optional arguments:
                         directory containing all files for model)
   -a [ALPHABET], --alphabet [ALPHABET]
                         Path to the configuration file specifying the alphabet
-                        used by the network
-  -l [LM], --lm [LM]    Path to the language model binary file
+                        used by the network. Default: alphabet.txt
+  -l [LM], --lm [LM]    Path to the language model binary file. Default:
+                        lm.binary
   -t [TRIE], --trie [TRIE]
                         Path to the language model trie file created with
-                        native_client/generate_trie
+                        native_client/generate_trie. Default: trie
   --lw LW               The alpha hyperparameter of the CTC decoder. Language
-                        Model weight
+                        Model weight. Default: 1.5
   --vwcw VWCW           Valid word insertion weight. This is used to lessen
                         the word insertion penalty when the inserted word is
-                        part of the vocabulary
+                        part of the vocabulary. Default: 2.25
   --bw BW               Beam width used in the CTC decoder when building
-                        candidate transcriptions
+                        candidate transcriptions. Default: 1024
   -p PORT, --port PORT  Port to run server on. Default: 8080
 ```
 
