@@ -19,7 +19,7 @@ Work in progress. Developed to quickly test new models running DeepSpeech in [Wi
 This package is developed in Python 3.
 Activate a virtualenv, then install the requirements for the server and/or client, depending on usage:
 
-```
+```bash
 pip install -r requirements-server.txt
 ### AND/OR ###
 pip install -r requirements-client.txt
@@ -27,7 +27,7 @@ pip install -r requirements-client.txt
 
 To run the server in an environment, you also need to install DeepSpeech, which requires choosing either the CPU xor GPU version:
 
-```
+```bash
 pip install deepspeech
 ### XOR ###
 pip install deepspeech-gpu
