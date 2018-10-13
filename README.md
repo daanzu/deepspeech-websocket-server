@@ -53,6 +53,34 @@ Hit Ctrl-C to quit.
 2018-10-06 AM 05:55:30.194: __main__: INFO: echo(): recognized: 'alpha bravo charlie'
 2018-10-06 AM 05:55:32.297: __main__: INFO: echo(): recognized: 'delta echo foxtrot'
 2018-10-06 AM 05:55:54.747: __main__: INFO: echo(): dead websocket
+^CKeyboardInterrupt
+```
+
+```
+> python server.py -h
+usage: server.py [-h] -m MODEL [-a [ALPHABET]] [-l [LM]] [-t [TRIE]] [--lw LW]
+                 [--vwcw VWCW] [--bw BW] [-p PORT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m MODEL, --model MODEL
+                        Path to the model (protocol buffer binary file, or
+                        directory containing all files for model)
+  -a [ALPHABET], --alphabet [ALPHABET]
+                        Path to the configuration file specifying the alphabet
+                        used by the network
+  -l [LM], --lm [LM]    Path to the language model binary file
+  -t [TRIE], --trie [TRIE]
+                        Path to the language model trie file created with
+                        native_client/generate_trie
+  --lw LW               The alpha hyperparameter of the CTC decoder. Language
+                        Model weight
+  --vwcw VWCW           Valid word insertion weight. This is used to lessen
+                        the word insertion penalty when the inserted word is
+                        part of the vocabulary
+  --bw BW               Beam width used in the CTC decoder when building
+                        candidate transcriptions
+  -p PORT, --port PORT  Port to run server on. Default: 8080
 ```
 
 ## Client
@@ -63,4 +91,14 @@ Listening...
 Recognized: alpha bravo charlie
 Recognized: delta echo foxtrot
 ^C
+```
+
+```
+λ py client.py -h
+usage: client.py [-h] [-s SERVER]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s SERVER, --server SERVER
+                        Default: ws://localhost:8080/recognize
 ```

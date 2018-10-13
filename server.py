@@ -73,6 +73,7 @@ def recognize(ws):
             text = model.finishStream(sctx)
             logger.info("recognized: %r", text)
             ws.send(text)
+            # FIXME: handle ConnectionResetError & geventwebsocket.exceptions.WebSocketError
             sctx = model.setupStream()
         else:
             logger.info("dead websocket")
