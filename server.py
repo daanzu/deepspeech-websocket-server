@@ -29,32 +29,34 @@ parser.add_argument('--vwcw', type=float, default=2.25,
                     help='Valid word insertion weight. This is used to lessen the word insertion penalty when the inserted word is part of the vocabulary')
 parser.add_argument('--bw', type=int, default=1024,
                     help='Beam width used in the CTC decoder when building candidate transcriptions')
-args = parser.parse_args()
+parser.add_argument('-p', '--port', default=8080,
+                    help='Port to run server on. Default: 8080')
+ARGS = parser.parse_args()
 
-if os.path.isdir(args.model):
-    model_dir = args.model
-    args.model = os.path.join(model_dir, 'output_graph.pb')
-    args.alphabet = os.path.join(model_dir, args.alphabet if args.alphabet else 'alphabet.txt')
-    if args.lm: args.lm = os.path.join(model_dir, args.lm)
-    if args.trie: args.trie = os.path.join(model_dir, args.trie)
+if os.path.isdir(ARGS.model):
+    model_dir = ARGS.model
+    ARGS.model = os.path.join(model_dir, 'output_graph.pb')
+    ARGS.alphabet = os.path.join(model_dir, ARGS.alphabet if ARGS.alphabet else 'alphabet.txt')
+    if ARGS.lm: ARGS.lm = os.path.join(model_dir, ARGS.lm)
+    if ARGS.trie: ARGS.trie = os.path.join(model_dir, ARGS.trie)
 
-LM_WEIGHT = args.lw
-VALID_WORD_COUNT_WEIGHT = args.vwcw
-BEAM_WIDTH = args.bw
+LM_WEIGHT = ARGS.lw
+VALID_WORD_COUNT_WEIGHT = ARGS.vwcw
+BEAM_WIDTH = ARGS.bw
 N_FEATURES = 26
 N_CONTEXT = 9
 
 print('Initializing model...')
-logger.info("args.model: %s", args.model)
-logger.info("args.alphabet: %s", args.alphabet)
+logger.info("ARGS.model: %s", ARGS.model)
+logger.info("ARGS.alphabet: %s", ARGS.alphabet)
 
-model = deepspeech.Model(args.model, N_FEATURES, N_CONTEXT, args.alphabet, BEAM_WIDTH)
-if args.lm and args.trie:
-    logger.info("args.lm: %s", args.lm)
-    logger.info("args.trie: %s", args.trie)
-    model.enableDecoderWithLM(args.alphabet,
-                              args.lm,
-                              args.trie,
+model = deepspeech.Model(ARGS.model, N_FEATURES, N_CONTEXT, ARGS.alphabet, BEAM_WIDTH)
+if ARGS.lm and ARGS.trie:
+    logger.info("ARGS.lm: %s", ARGS.lm)
+    logger.info("ARGS.trie: %s", ARGS.trie)
+    model.enableDecoderWithLM(ARGS.alphabet,
+                              ARGS.lm,
+                              ARGS.trie,
                               LM_WEIGHT,
                               VALID_WORD_COUNT_WEIGHT)
 
@@ -80,7 +82,7 @@ def echo(ws):
 def index():
     return template('index')
 
-run(host='127.0.0.1', port=8080, server=GeventWebSocketServer)
+run(host='127.0.0.1', port=ARGS.port, server=GeventWebSocketServer)
 
 # python server.py --model ../models/daanzu-30330/output_graph.pb --alphabet ../models/daanzu-30330/alphabet.txt --lm ../models/daanzu-30330/lm.binary --trie ../models/daanzu-30330/trie
 # python server.py --model ../models/daanzu-30330.2/output_graph.pb --alphabet ../models/daanzu-30330.2/alphabet.txt --lm ../models/daanzu-30330.2/lm.binary --trie ../models/daanzu-30330.2/trie

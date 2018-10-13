@@ -195,14 +195,13 @@ def main():
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--test", action="store_true")
-    parser.add_argument("-s", "--server", default="ws://localhost:8080/websocket")
+    parser.add_argument("-s", "--server", default="ws://localhost:8080/websocket",
+        help="Default: ws://localhost:8080/websocket")
     global ARGS
     ARGS = parser.parse_args()
-
     # logging.getLogger().setLevel(10)
 
-    if ARGS.test:
+    if 0:
         main_test()
     else:
         main()
