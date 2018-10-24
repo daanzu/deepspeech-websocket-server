@@ -33,6 +33,8 @@ pip install deepspeech
 pip install deepspeech-gpu
 ```
 
+Upgrade to the latest DeepSpeech with `pip install deepspeech --upgrade` (or gpu version). This package works with v0.3.0.
+
 ## Server
 
 ```
