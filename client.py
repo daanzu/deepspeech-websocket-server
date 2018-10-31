@@ -3,6 +3,7 @@ import threading, collections, queue
 import wave
 import pyaudio
 from lomond import WebSocket, events
+from halo import Halo
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=30,
@@ -156,13 +157,17 @@ def main_test():
 def main():
     websocket = WebSocket(ARGS.server)
     # TODO: compress?
+    print("Connecting to '%s'..." % websocket.url)
     ready = False
 
     def consumer(self, frames):
         length_ms = 0
+        spinner = None
+        if not ARGS.nospinner: spinner = Halo(spinner='line') # circleHalves point arc boxBounce2 bounce line
         for frame in frames:
             if ready and websocket.is_active:
                 if frame is not None:
+                    if spinner: spinner.start()
                     logging.log(5, "sending frame")
                     websocket.send_binary(frame)
                     length_ms += self.frame_duration_ms
@@ -170,6 +175,7 @@ def main():
                     logging.log(5, "sending EOS")
                     logging.info("sent audio length_ms: %d" % length_ms)
                     length_ms = 0
+                    if spinner: spinner.stop()
                     websocket.send_text('EOS')
     VADAudio(consumer)
 
@@ -178,9 +184,11 @@ def main():
     def on_event(event):
         if isinstance(event, events.Ready):
             nonlocal ready
+            if not ready:
+                print("Connected!")
             ready = True
         elif isinstance(event, events.Text):
-            print("Recognized: %s" % event.text)
+            if 1: print("Recognized: %s" % event.text)
         elif 1:
             logging.debug(event)
 
@@ -195,8 +203,10 @@ def main():
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--server", default="ws://localhost:8080/recognize",
+    parser.add_argument('-s', '--server', default='ws://localhost:8080/recognize',
         help="Default: ws://localhost:8080/recognize")
+    parser.add_argument('--nospinner', action='store_true',
+        help="Disable spinner")
     global ARGS
     ARGS = parser.parse_args()
     # logging.getLogger().setLevel(10)

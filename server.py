@@ -1,4 +1,5 @@
 import argparse, logging, os.path
+from time import time
 
 from bottle import get, run, template
 from bottle.ext.websocket import GeventWebSocketServer
@@ -8,11 +9,10 @@ import deepspeech
 import numpy as np
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=10,
+logging.basicConfig(level=20,
     format="%(asctime)s.%(msecs)03d: %(name)s: %(levelname)s: %(funcName)s(): %(message)s",
     datefmt="%Y-%m-%d %p %I:%M:%S",
     )
-logging.getLogger().setLevel(20)
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-m', '--model', required=True,
@@ -31,7 +31,11 @@ parser.add_argument('--bw', type=int, default=1024,
                     help='Beam width used in the CTC decoder when building candidate transcriptions. Default: 1024')
 parser.add_argument('-p', '--port', default=8080,
                     help='Port to run server on. Default: 8080')
+parser.add_argument('--debuglevel', default=20,
+                    help='Debug logging level. Default: 20')
 ARGS = parser.parse_args()
+
+logging.getLogger().setLevel(int(ARGS.debuglevel))
 
 if os.path.isdir(ARGS.model):
     model_dir = ARGS.model
@@ -64,19 +68,24 @@ if ARGS.lm and ARGS.trie:
 def recognize(ws):
     logger.debug("new websocket")
     sctx = model.setupStream()
+    start_time = None
     while True:
         data = ws.receive()
-        logger.debug("got websocket data: %r", data)
+        # logger.log(5, "got websocket data: %r", data)
         if isinstance(data, bytearray):
+            if not start_time: start_time = time()
             model.feedAudioContent(sctx, np.frombuffer(data, np.int16))
         elif isinstance(data, str) and data == 'EOS':
+            eos_time = time()
             text = model.finishStream(sctx)
             logger.info("recognized: %r", text)
+            logger.debug("    time: total=%s post_eos=%s", time()-start_time, time()-eos_time)
             ws.send(text)
             # FIXME: handle ConnectionResetError & geventwebsocket.exceptions.WebSocketError
             sctx = model.setupStream()
+            start_time = None
         else:
-            logger.info("dead websocket")
+            logger.debug("dead websocket")
             break
 
 @get('/')
