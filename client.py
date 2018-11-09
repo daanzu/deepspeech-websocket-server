@@ -1,5 +1,6 @@
 import time, logging
-import threading, collections, queue
+from datetime import datetime
+import threading, collections, queue, os, os.path
 import wave
 import pyaudio
 from lomond import WebSocket, events
@@ -43,8 +44,7 @@ class Audio(object):
 
     frame_duration_ms = property(lambda self: 1000 * self.block_size // self.sample_rate)
 
-    @staticmethod
-    def write_wav(filename, data):
+    def write_wav(self, filename, data):
         logger.info("write wav %s", filename)
         wf = wave.open(filename, 'wb')
         wf.setnchannels(CHANNELS)
@@ -52,7 +52,7 @@ class Audio(object):
         assert FORMAT == pyaudio.paInt16
         wf.setsampwidth(2)
         wf.setframerate(self.sample_rate)
-        wf.writeframes(data.tostring())
+        wf.writeframes(data)
         wf.close()
 
     @classmethod
@@ -161,22 +161,31 @@ def main():
     ready = False
 
     def consumer(self, frames):
-        length_ms = 0
         spinner = None
         if not ARGS.nospinner: spinner = Halo(spinner='line') # circleHalves point arc boxBounce2 bounce line
+        length_ms = 0
+        wav_data = bytearray()
         for frame in frames:
             if ready and websocket.is_active:
                 if frame is not None:
+                    if not length_ms:
+                        logging.debug("begin utterence")
                     if spinner: spinner.start()
                     logging.log(5, "sending frame")
                     websocket.send_binary(frame)
+                    if ARGS.savewav: wav_data.extend(frame)
                     length_ms += self.frame_duration_ms
                 else:
-                    logging.log(5, "sending EOS")
-                    logging.info("sent audio length_ms: %d" % length_ms)
-                    length_ms = 0
                     if spinner: spinner.stop()
+                    if not length_ms: raise RuntimeError("ended utterence without beginning")
+                    logging.debug("end utterence")
+                    if ARGS.savewav: 
+                        self.write_wav(os.path.join(ARGS.savewav, datetime.now().strftime("savewav_%Y-%m-%d_%H-%M-%S_%f.wav")), wav_data)
+                        wav_data = bytearray()
+                    logging.info("sent audio length_ms: %d" % length_ms)
+                    logging.log(5, "sending EOS")
                     websocket.send_text('EOS')
+                    length_ms = 0
     VADAudio(consumer)
 
     print("Listening...")
@@ -207,9 +216,13 @@ if __name__ == '__main__':
         help="Default: ws://localhost:8080/recognize")
     parser.add_argument('--nospinner', action='store_true',
         help="Disable spinner")
+    parser.add_argument('-w', '--savewav',
+        help="Save .wav files of utterences to given directory")
     global ARGS
     ARGS = parser.parse_args()
     # logging.getLogger().setLevel(10)
+
+    if ARGS.savewav: os.makedirs(ARGS.savewav, exist_ok=True)
 
     if 0:
         main_test()
