@@ -63,7 +63,7 @@ class Audio(object):
         audio.destroy()
 
 class VADAudio(Audio):
-    def __init__(self, consumer=None, aggressiveness=3):
+    def __init__(self, consumer, aggressiveness):
         super().__init__()
         import webrtcvad
         self.vad = webrtcvad.Vad(aggressiveness)
@@ -186,8 +186,8 @@ def main():
                     logging.log(5, "sending EOS")
                     websocket.send_text('EOS')
                     length_ms = 0
-    VADAudio(consumer)
 
+    VADAudio(consumer, aggressiveness=ARGS.aggressiveness)
     print("Listening...")
 
     def on_event(event):
@@ -211,9 +211,11 @@ def main():
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Streams raw audio data from microphone with VAD to server via WebSocket")
     parser.add_argument('-s', '--server', default='ws://localhost:8080/recognize',
         help="Default: ws://localhost:8080/recognize")
+    parser.add_argument('-a', '--aggressiveness', type=int, default=3,
+        help="Set aggressiveness of VAD: an integer between 0 and 3, 0 being the least aggressive about filtering out non-speech, 3 the most aggressive. Default: 3")
     parser.add_argument('--nospinner', action='store_true',
         help="Disable spinner")
     parser.add_argument('-w', '--savewav',
