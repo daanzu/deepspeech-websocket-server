@@ -13,6 +13,8 @@ Work in progress. Developed to quickly test new models running DeepSpeech in [Wi
 * Client
     - Streams raw audio data from microphone to server via WebSocket
     - Voice activity detection (VAD) to ignore noise and segment microphone input into separate utterances
+    - Hypnotizing spinner to indicate voice activity is detected!
+    - Option to automatically save each utterance to a separate .wav file, for later testing
 
 ## Installation
 
@@ -98,10 +100,20 @@ Recognized: delta echo foxtrot
 
 ```
 λ py client.py -h
-usage: client.py [-h] [-s SERVER]
+usage: client.py [-h] [-s SERVER] [-a AGGRESSIVENESS] [--nospinner]
+                 [-w SAVEWAV]
+
+Streams raw audio data from microphone with VAD to server via WebSocket
 
 optional arguments:
   -h, --help            show this help message and exit
   -s SERVER, --server SERVER
                         Default: ws://localhost:8080/recognize
+  -a AGGRESSIVENESS, --aggressiveness AGGRESSIVENESS
+                        Set aggressiveness of VAD: an integer between 0 and 3,
+                        0 being the least aggressive about filtering out non-
+                        speech, 3 the most aggressive. Default: 3
+  --nospinner           Disable spinner
+  -w SAVEWAV, --savewav SAVEWAV
+                        Save .wav files of utterences to given directory
 ```

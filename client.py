@@ -13,28 +13,28 @@ logging.basicConfig(level=30,
     )
 logging.getLogger('lomond').setLevel(30)
 
-FORMAT = pyaudio.paInt16
-RATE = 16000
-CHANNELS = 1
-BLOCKS_PER_SECOND = 50
-BLOCK_SIZE = int(RATE / float(BLOCKS_PER_SECOND))
-
 class Audio(object):
+    FORMAT = pyaudio.paInt16
+    RATE = 16000
+    CHANNELS = 1
+    BLOCKS_PER_SECOND = 50
+    BLOCK_SIZE = int(RATE / float(BLOCKS_PER_SECOND))
+
     def __init__(self, callback=None):
         def proxy_callback(in_data, frame_count, time_info, status):
             callback(in_data)
             return (None, pyaudio.paContinue)
         if callback is None: proxy_callback = None
-        self.sample_rate = RATE
-        self.block_size = BLOCK_SIZE
+        self.sample_rate = self.RATE
+        self.block_size = self.BLOCK_SIZE
         self.pa = pyaudio.PyAudio()
-        self.stream = self.pa.open(format=FORMAT,
-                              channels=CHANNELS,
-                              rate=self.sample_rate,
-                              input=True,
-                              # output=True,
-                              frames_per_buffer=self.block_size,
-                              stream_callback=proxy_callback)
+        self.stream = self.pa.open(format=self.FORMAT,
+                                   channels=self.CHANNELS,
+                                   rate=self.sample_rate,
+                                   input=True,
+                                   # output=True,
+                                   frames_per_buffer=self.block_size,
+                                   stream_callback=proxy_callback)
         self.stream.start_stream()
 
     def destroy(self):
@@ -47,7 +47,7 @@ class Audio(object):
     def write_wav(self, filename, data):
         logger.info("write wav %s", filename)
         wf = wave.open(filename, 'wb')
-        wf.setnchannels(CHANNELS)
+        wf.setnchannels(self.CHANNELS)
         # wf.setsampwidth(self.pa.get_sample_size(FORMAT))
         assert FORMAT == pyaudio.paInt16
         wf.setsampwidth(2)
@@ -179,7 +179,7 @@ def main():
                     if spinner: spinner.stop()
                     if not length_ms: raise RuntimeError("ended utterence without beginning")
                     logging.debug("end utterence")
-                    if ARGS.savewav: 
+                    if ARGS.savewav:
                         self.write_wav(os.path.join(ARGS.savewav, datetime.now().strftime("savewav_%Y-%m-%d_%H-%M-%S_%f.wav")), wav_data)
                         wav_data = bytearray()
                     logging.info("sent audio length_ms: %d" % length_ms)
