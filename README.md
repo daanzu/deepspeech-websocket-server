@@ -37,6 +37,10 @@ pip install deepspeech-gpu
 
 Upgrade to the latest DeepSpeech with `pip install deepspeech --upgrade` (or gpu version). This package works with v0.3.0.
 
+The client uses `pyaudio` and `portaudio` for microphone access. In my experience, this works out of the box on Windows. 
+On Linux, you may need to install portaudio header files to compile the pyaudio package: `sudo apt install portaudio19-dev` .
+On MacOS, try installing portaudio with brew: `brew install portaudio` .
+
 ## Server
 
 ```
