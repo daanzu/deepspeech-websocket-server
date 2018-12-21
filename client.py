@@ -21,16 +21,15 @@ class Audio(object):
     RATE = 16000
     CHANNELS = 1
     BLOCKS_PER_SECOND = 50
-    BLOCK_SIZE = int(RATE / float(BLOCKS_PER_SECOND))
 
-    def __init__(self, callback=None):
+    def __init__(self, callback=None, buffer_s=0, flush_queue=True):
         def proxy_callback(in_data, frame_count, time_info, status):
             callback(in_data)
             return (None, pyaudio.paContinue)
-        if callback is None: callback = lambda in_data: self.buffer_queue.put(in_data)
-        self.buffer_queue = queue.Queue()
+        if callback is None: callback = lambda in_data: self.buffer_queue.put(in_data, block=False)
         self.sample_rate = self.RATE
-        self.block_size = self.BLOCK_SIZE
+        self.flush_queue = flush_queue
+        self.buffer_queue = queue.Queue(maxsize=(buffer_s * 1000 // self.block_duration_ms))
         self.pa = pyaudio.PyAudio()
         self.stream = self.pa.open(format=self.FORMAT,
                                    channels=self.CHANNELS,
@@ -39,17 +38,36 @@ class Audio(object):
                                    frames_per_buffer=self.block_size,
                                    stream_callback=proxy_callback)
         self.stream.start_stream()
-
-    def read(self):
-        """Return a block of audio data, blocking if necessary."""
-        return self.buffer_queue.get()
+        self.active = True
 
     def destroy(self):
         self.stream.stop_stream()
         self.stream.close()
         self.pa.terminate()
+        self.active = False
 
-    frame_duration_ms = property(lambda self: 1000 * self.block_size // self.sample_rate)
+    def read(self):
+        """Return a block of audio data, blocking if necessary."""
+        if self.active or (self.flush_queue and not self.buffer_queue.empty()):
+            return self.buffer_queue.get()
+        else:
+            return None
+
+    def read_loop(self, callback):
+        """Block looping reading, repeatedly passing a block of audio data to callback."""
+        for block in iter(self):
+            callback(block)
+
+    def __iter__(self):
+        """Generator that yields all audio frames from microphone."""
+        while True:
+            block = self.read()
+            if block is None:
+                break
+            yield block
+
+    block_size = property(lambda self: int(self.sample_rate / float(self.BLOCKS_PER_SECOND)))
+    block_duration_ms = property(lambda self: 1000 * self.block_size // self.sample_rate)
 
     def write_wav(self, filename, data):
         logging.info("write wav %s", filename)
@@ -69,14 +87,9 @@ class VADAudio(Audio):
         super().__init__()
         self.vad = webrtcvad.Vad(aggressiveness)
 
-    def frame_generator(self):
-        """Generator that yields all audio frames from microphone."""
-        while True:
-            yield self.read()
-
     def vad_collector_simple(self, pre_padding_ms, frames=None):
-        if frames is None: frames = self.frame_generator()
-        num_padding_frames = pre_padding_ms // self.frame_duration_ms
+        if frames is None: frames = iter(self)
+        num_padding_frames = padding_ms // self.block_duration_ms
         buff = collections.deque(maxlen=num_padding_frames)
         triggered = False
 
@@ -107,8 +120,8 @@ class VADAudio(Audio):
             Example: (frame, ..., frame, None, frame, ..., frame, None, ...)
                       |---utterence---|        |---utterence---|
         """
-        if frames is None: frames = self.frame_generator()
-        num_padding_frames = padding_ms // self.frame_duration_ms
+        if frames is None: frames = iter(self)
+        num_padding_frames = padding_ms // self.block_duration_ms
         ring_buffer = collections.deque(maxlen=num_padding_frames)
         triggered = False
 
@@ -136,7 +149,7 @@ class VADAudio(Audio):
     @classmethod
     def test_vad(cls, aggressiveness):
         self = cls(aggressiveness=aggressiveness)
-        frames = self.frame_generator()
+        frames = iter(self)
         for frame in frames:
             is_speech = self.vad.is_speech(frame, self.sample_rate)
             print('|' if is_speech else '.', end='', flush=True)
@@ -177,7 +190,7 @@ def main(ARGS):
                     logging.log(5, "sending frame")
                     websocket.send_binary(frame)
                     if ARGS.savewav: wav_data.extend(frame)
-                    length_ms += vad_audio.frame_duration_ms
+                    length_ms += vad_audio.block_duration_ms
                 else:
                     if spinner: spinner.stop()
                     if not length_ms: raise RuntimeError("ended utterence without beginning")
