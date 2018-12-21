@@ -59,7 +59,7 @@ class Audio(object):
             callback(block)
 
     def __iter__(self):
-        """Generator that yields all audio frames from microphone."""
+        """Generator that yields all audio blocks from microphone."""
         while True:
             block = self.read()
             if block is None:
@@ -87,14 +87,14 @@ class VADAudio(Audio):
         super().__init__()
         self.vad = webrtcvad.Vad(aggressiveness)
 
-    def vad_collector_simple(self, pre_padding_ms, frames=None):
-        if frames is None: frames = iter(self)
-        num_padding_frames = padding_ms // self.block_duration_ms
-        buff = collections.deque(maxlen=num_padding_frames)
+    def vad_collector_simple(self, pre_padding_ms, blocks=None):
+        if blocks is None: blocks = iter(self)
+        num_padding_blocks = padding_ms // self.block_duration_ms
+        buff = collections.deque(maxlen=num_padding_blocks)
         triggered = False
 
-        for frame in frames:
-            is_speech = self.vad.is_speech(frame, self.sample_rate)
+        for block in blocks:
+            is_speech = self.vad.is_speech(block, self.sample_rate)
 
             if not triggered:
                 if is_speech:
@@ -102,34 +102,34 @@ class VADAudio(Audio):
                     for f in buff:
                         yield f
                     buff.clear()
-                    yield frame
+                    yield block
                 else:
-                    buff.append(frame)
+                    buff.append(block)
 
             else:
                 if is_speech:
-                    yield frame
+                    yield block
                 else:
                     triggered = False
                     yield None
-                    buff.append(frame)
+                    buff.append(block)
 
-    def vad_collector(self, padding_ms=300, ratio=0.75, frames=None):
-        """Generator that yields series of consecutive audio frames comprising each utterence, separated by yielding a single None.
-            Determines voice activity by ratio of frames in padding_ms. Uses a buffer to include padding_ms prior to being triggered.
-            Example: (frame, ..., frame, None, frame, ..., frame, None, ...)
+    def vad_collector(self, padding_ms=300, ratio=0.75, blocks=None):
+        """Generator that yields series of consecutive audio blocks comprising each utterence, separated by yielding a single None.
+            Determines voice activity by ratio of blocks in padding_ms. Uses a buffer to include padding_ms prior to being triggered.
+            Example: (block, ..., block, None, block, ..., block, None, ...)
                       |---utterence---|        |---utterence---|
         """
-        if frames is None: frames = iter(self)
-        num_padding_frames = padding_ms // self.block_duration_ms
-        ring_buffer = collections.deque(maxlen=num_padding_frames)
+        if blocks is None: blocks = iter(self)
+        num_padding_blocks = padding_ms // self.block_duration_ms
+        ring_buffer = collections.deque(maxlen=num_padding_blocks)
         triggered = False
 
-        for frame in frames:
-            is_speech = self.vad.is_speech(frame, self.sample_rate)
+        for block in blocks:
+            is_speech = self.vad.is_speech(block, self.sample_rate)
 
             if not triggered:
-                ring_buffer.append((frame, is_speech))
+                ring_buffer.append((block, is_speech))
                 num_voiced = len([f for f, speech in ring_buffer if speech])
                 if num_voiced > ratio * ring_buffer.maxlen:
                     triggered = True
@@ -138,8 +138,8 @@ class VADAudio(Audio):
                     ring_buffer.clear()
 
             else:
-                yield frame
-                ring_buffer.append((frame, is_speech))
+                yield block
+                ring_buffer.append((block, is_speech))
                 num_unvoiced = len([f for f, speech in ring_buffer if not speech])
                 if num_unvoiced > ratio * ring_buffer.maxlen:
                     triggered = False
@@ -149,20 +149,20 @@ class VADAudio(Audio):
     @classmethod
     def test_vad(cls, aggressiveness):
         self = cls(aggressiveness=aggressiveness)
-        frames = iter(self)
-        for frame in frames:
-            is_speech = self.vad.is_speech(frame, self.sample_rate)
+        blocks = iter(self)
+        for block in blocks:
+            is_speech = self.vad.is_speech(block, self.sample_rate)
             print('|' if is_speech else '.', end='', flush=True)
 
 
 def main_test(ARGS):
     if 0:
-        def consumer(self, frames):
+        def consumer(self, blocks):
             length_ms = 0
-            for frame in frames:
-                if frame is not None:
+            for block in blocks:
+                if block is not None:
                     print('|', end='', flush=True)
-                    length_ms += self.frame_duration_ms
+                    length_ms += self.block_duration_ms
                 else:
                     print('.', end='', flush=True)
                     length_ms = 0
@@ -181,15 +181,15 @@ def main(ARGS):
         if not ARGS.nospinner: spinner = Halo(spinner='line') # circleHalves point arc boxBounce2 bounce line
         length_ms = 0
         wav_data = bytearray()
-        for frame in vad_audio.vad_collector():
+        for block in vad_audio.vad_collector():
             if ready and websocket.is_active:
-                if frame is not None:
+                if block is not None:
                     if not length_ms:
                         logging.debug("begin utterence")
                     if spinner: spinner.start()
-                    logging.log(5, "sending frame")
-                    websocket.send_binary(frame)
-                    if ARGS.savewav: wav_data.extend(frame)
+                    logging.log(5, "sending block")
+                    websocket.send_binary(block)
+                    if ARGS.savewav: wav_data.extend(block)
                     length_ms += vad_audio.block_duration_ms
                 else:
                     if spinner: spinner.stop()
