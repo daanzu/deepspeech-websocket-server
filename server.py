@@ -4,6 +4,7 @@ from time import time
 from bottle import get, run, template
 from bottle.ext.websocket import GeventWebSocketServer
 from bottle.ext.websocket import websocket
+from gevent.lock import BoundedSemaphore
 
 import deepspeech
 import numpy as np
@@ -37,6 +38,8 @@ ARGS = parser.parse_args()
 
 logging.getLogger().setLevel(int(ARGS.debuglevel))
 
+gSem = BoundedSemaphore(1) #Only one Deepspeech instance available at a time
+
 if os.path.isdir(ARGS.model):
     model_dir = ARGS.model
     ARGS.model = os.path.join(model_dir, 'output_graph.pb')
@@ -69,11 +72,20 @@ def recognize(ws):
     logger.debug("new websocket")
     sctx = model.setupStream()
     start_time = None
+    logger.debug("acquiring lock for deepspeech ...")
+    gSem.acquire(blocking=True)
+    gSem_acquired = True
+    logger.debug("lock acquired")
     while True:
         data = ws.receive()
         # logger.log(5, "got websocket data: %r", data)
         if isinstance(data, bytearray):
             if not start_time: start_time = time()
+            if not gSem_acquired:
+                logger.debug("acquiring lock for deepspeech ...")
+                gSem.acquire(blocking=True)
+                gSem_acquired = True
+                logger.debug("lock acquired")
             model.feedAudioContent(sctx, np.frombuffer(data, np.int16))
         elif isinstance(data, str) and data == 'EOS':
             eos_time = time()
@@ -83,9 +95,20 @@ def recognize(ws):
             ws.send(text)
             # FIXME: handle ConnectionResetError & geventwebsocket.exceptions.WebSocketError
             sctx = model.setupStream()
+            logger.debug("releasing lock ...")
+            gSem.release()
+            gSem_acquired = False
+            logger.debug("lock released")
             start_time = None
         else:
             logger.debug("dead websocket")
+            try:
+                logger.debug("releasing lock ...")
+                gSem.release()
+                gSem_acquired = False
+                logger.debug("lock released")
+            except ValueError:
+                logger.debug("Overrelease error: failed to release semaphore, already released!")
             break
 
 @get('/')
