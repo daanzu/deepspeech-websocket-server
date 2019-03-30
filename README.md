@@ -9,7 +9,7 @@ Work in progress. Developed to quickly test new models running DeepSpeech in [Wi
 * Server
     - Streams raw audio data from client via WebSocket
     - Streaming inference via DeepSpeech v0.2+
-    - Single-user (issues with concurrent streams)
+    - Multi-user (only decodes one stream at a time, but can block until decoding is available)
 * Client
     - Streams raw audio data from microphone to server via WebSocket
     - Voice activity detection (VAD) to ignore noise and segment microphone input into separate utterances
@@ -121,3 +121,10 @@ optional arguments:
   -w SAVEWAV, --savewav SAVEWAV
                         Save .wav files of utterences to given directory
 ```
+
+## Contributions
+
+Pull requests welcome.
+
+Contributors:
+* [@Zeddy913](https://github.com/Zeddy913)
