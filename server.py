@@ -38,7 +38,7 @@ ARGS = parser.parse_args()
 
 logging.getLogger().setLevel(int(ARGS.debuglevel))
 
-gSem = BoundedSemaphore(1) #Only one Deepspeech instance available at a time
+gSem = BoundedSemaphore(1)  # Only one Deepspeech instance available at a time
 
 if os.path.isdir(ARGS.model):
     model_dir = ARGS.model
@@ -70,45 +70,48 @@ if ARGS.lm and ARGS.trie:
 @get('/recognize', apply=[websocket])
 def recognize(ws):
     logger.debug("new websocket")
-    sctx = model.setupStream()
     start_time = None
-    logger.debug("acquiring lock for deepspeech ...")
-    gSem.acquire(blocking=True)
-    gSem_acquired = True
-    logger.debug("lock acquired")
+    gSem_acquired = False
+
     while True:
         data = ws.receive()
         # logger.log(5, "got websocket data: %r", data)
+
         if isinstance(data, bytearray):
-            if not start_time: start_time = time()
-            if not gSem_acquired:
-                logger.debug("acquiring lock for deepspeech ...")
+            # Receive stream data
+            if not start_time:
+                # Start of stream (utterance)
+                start_time = time()
+                sctx = model.setupStream()
+                assert not gSem_acquired
+                # logger.debug("acquiring lock for deepspeech ...")
                 gSem.acquire(blocking=True)
                 gSem_acquired = True
-                logger.debug("lock acquired")
+                # logger.debug("lock acquired")
             model.feedAudioContent(sctx, np.frombuffer(data, np.int16))
+
         elif isinstance(data, str) and data == 'EOS':
+            # End of stream (utterance)
             eos_time = time()
             text = model.finishStream(sctx)
             logger.info("recognized: %r", text)
-            logger.debug("    time: total=%s post_eos=%s", time()-start_time, time()-eos_time)
+            logger.info("    time: total=%s post_eos=%s", time()-start_time, time()-eos_time)
             ws.send(text)
             # FIXME: handle ConnectionResetError & geventwebsocket.exceptions.WebSocketError
-            sctx = model.setupStream()
-            logger.debug("releasing lock ...")
+            # logger.debug("releasing lock ...")
             gSem.release()
             gSem_acquired = False
-            logger.debug("lock released")
+            # logger.debug("lock released")
             start_time = None
+
         else:
+            # Lost connection
             logger.debug("dead websocket")
-            try:
-                logger.debug("releasing lock ...")
+            if gSem_acquired:
+                # logger.debug("releasing lock ...")
                 gSem.release()
                 gSem_acquired = False
-                logger.debug("lock released")
-            except ValueError:
-                logger.debug("Overrelease error: failed to release semaphore, already released!")
+                # logger.debug("lock released")
             break
 
 @get('/')
