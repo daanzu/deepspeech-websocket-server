@@ -1,5 +1,8 @@
 # DeepSpeech WebSocket Server
 
+[![Donate](https://img.shields.io/badge/donate-PayPal-green.svg)](https://paypal.me/daanzu)
+[![Donate](https://img.shields.io/badge/donate-Patreon-orange.svg)](https://www.patreon.com/daanzu)
+
 This is a [WebSocket](https://en.wikipedia.org/wiki/WebSocket) server (& client) for Mozilla's [DeepSpeech](https://github.com/mozilla/DeepSpeech), to allow easy real-time speech recognition, using a separate client & server that can be run in different environments, either locally or remotely.
 
 Work in progress. Developed to quickly test new models running DeepSpeech in [Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/about) using microphone input from host Windows. Available to save others some time.
@@ -15,6 +18,7 @@ Work in progress. Developed to quickly test new models running DeepSpeech in [Wi
     - Voice activity detection (VAD) to ignore noise and segment microphone input into separate utterances
     - Hypnotizing spinner to indicate voice activity is detected!
     - Option to automatically save each utterance to a separate .wav file, for later testing
+    - Need to pause/unpause listening? [See here](https://github.com/daanzu/deepspeech-websocket-server/issues/6).
 
 ## Installation
 
