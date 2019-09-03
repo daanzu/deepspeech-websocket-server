@@ -110,7 +110,7 @@ Recognized: delta echo foxtrot
 ```
 λ py client.py -h
 usage: client.py [-h] [-s SERVER] [-a AGGRESSIVENESS] [--nospinner]
-                 [-w SAVEWAV]
+                 [-w SAVEWAV] [-d DEVICE] [-v]
 
 Streams raw audio data from microphone with VAD to server via WebSocket
 
@@ -124,7 +124,13 @@ optional arguments:
                         speech, 3 the most aggressive. Default: 3
   --nospinner           Disable spinner
   -w SAVEWAV, --savewav SAVEWAV
-                        Save .wav files of utterences to given directory
+                        Save .wav files of utterences to given directory.
+                        Example for current directory: -w .
+  -d DEVICE, --device DEVICE
+                        Set audio device for input, according to system. The
+                        default utilizes system-specified recording device.
+  -v, --verbose         Print debugging info
+
 ```
 
 ## Contributions

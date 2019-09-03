@@ -25,7 +25,7 @@ class Audio(object):
     CHANNELS = 1
     BLOCKS_PER_SECOND = 50
 
-    def __init__(self, callback=None, buffer_s=0, flush_queue=True):
+    def __init__(self, callback=None, buffer_s=0, flush_queue=True, device_index=None):
         def proxy_callback(in_data, frame_count, time_info, status):
             callback(in_data)
             return (None, pyaudio.paContinue)
@@ -38,6 +38,7 @@ class Audio(object):
                                    channels=self.CHANNELS,
                                    rate=self.sample_rate,
                                    input=True,
+                                   input_device_index=device_index,
                                    frames_per_buffer=self.block_size,
                                    stream_callback=proxy_callback)
         self.stream.start_stream()
@@ -89,8 +90,8 @@ class Audio(object):
 class VADAudio(Audio):
     """Filter & segment audio with voice activity detection."""
 
-    def __init__(self, aggressiveness=3):
-        super().__init__()
+    def __init__(self, aggressiveness=3, device_index=None):
+        super().__init__(device_index=device_index)
         self.vad = webrtcvad.Vad(aggressiveness)
 
     def vad_collector_simple(self, pre_padding_ms, blocks=None):
@@ -225,7 +226,7 @@ def main():
     # TODO: compress?
     print_output("Connecting to '%s'..." % websocket.url)
 
-    vad_audio = VADAudio(aggressiveness=ARGS.aggressiveness)
+    vad_audio = VADAudio(aggressiveness=ARGS.aggressiveness, device_index=ARGS.device)
     print_output("Listening (ctrl-C to exit)...")
     audio_consumer_thread = threading.Thread(target=lambda: audio_consumer(vad_audio, websocket))
     audio_consumer_thread.start()
@@ -246,7 +247,7 @@ def main_test():
                 else:
                     print('.', end='', flush=True)
                     length_ms = 0
-        VADAudio(consumer)
+        VADAudio(consumer, device_index=ARGS.device)
     elif 1:
         VADAudio.test_vad(3)
 
@@ -261,6 +262,8 @@ if __name__ == '__main__':
         help="Disable spinner")
     parser.add_argument('-w', '--savewav',
         help="Save .wav files of utterences to given directory. Example for current directory: -w .")
+    parser.add_argument('-d', '--device', type=int, default=None,
+        help="Set audio device for input, according to system. The default utilizes system-specified recording device.")
     parser.add_argument('-v', '--verbose', action='store_true',
         help="Print debugging info")
     ARGS = parser.parse_args()
