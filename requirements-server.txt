@@ -1,3 +1,4 @@
 numpy>=1.15.1
 bottle>=0.12.13
 bottle-websocket>=0.2.9
+scipy>=0.12.0

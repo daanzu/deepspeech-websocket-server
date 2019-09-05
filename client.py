@@ -57,6 +57,7 @@ class Audio(object):
         else:
             return None
 
+
     def read_loop(self, callback):
         """Block looping reading, repeatedly passing a block of audio data to callback."""
         for block in iter(self):

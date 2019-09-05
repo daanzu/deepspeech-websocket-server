@@ -14,12 +14,66 @@ Work in progress. Developed to quickly test new models running DeepSpeech in [Wi
     - Streaming inference via DeepSpeech v0.2+
     - Multi-user (only decodes one stream at a time, but can block until decoding is available)
     - Tested and works with DeepSpeech v0.5.1 on Windows
+    - Mode for JSON return and enhanced/rich metadata on timing of each word
 * Client
     - Streams raw audio data from microphone to server via WebSocket
     - Voice activity detection (VAD) to ignore noise and segment microphone input into separate utterances
     - Hypnotizing spinner to indicate voice activity is detected!
     - Option to automatically save each utterance to a separate .wav file, for later testing
     - Need to pause/unpause listening? [See here](https://github.com/daanzu/deepspeech-websocket-server/issues/6).
+    - A POST endpoint to push files directly (warning, limited file upload size)
+
+
+### Server Endpoints
+
+Functionality was expanded with a few additional enpoints but the same great server wrapper.
+
+* `/recognize` - WebSocket-based traditional recognition (plain text result)
+* `/recognize_meta` - WebSocket-based enhanced recognition that includes JSON results for probability, timing, etc.
+    - example JSON result: 
+    ```
+    {
+        "probability": 53.0922,
+        "text": "your power is sufficient i said",
+        "duration": 5.36,
+        "items": [
+            {
+                "text": "your",
+                "start": 0.68,
+                "duration": 0.18
+            },
+            {
+                "text": "power",
+                "start": 0.92,
+                "duration": 0.50
+            },
+            {
+                "text": "is",
+                "start": 1.24,
+                "duration": 0.66
+            },
+            {
+                "text": "sufficient",
+                "start": 1.38,
+                "duration": 1.32
+            },
+            {
+                "text": "i",
+                "start": 1.86,
+                "duration": 1.32
+            },
+            {
+                "text": "said",
+                "start": 2.04,
+                "duration": 1.38
+            }
+        ],
+        "start": 0.68
+    }
+    ```
+* `/recognize_file` - POST recognition allowing either enhanced (JSON) or text-only (string) for a file upload (see [Audio File Processing](Audio+File+Processing))
+    - uses web-form or parameter submissions using parameters `audio` (a `wav file`) and `enhanced` (integer `0` or `1`)
+
 
 ## Installation
 
@@ -48,7 +102,7 @@ On MacOS, try installing portaudio with brew: `brew install portaudio` .
 
 ## Server
 
-```
+```bash
 > python server.py --model ../models/daanzu-6h-512l-0001lr-425dr/ -l -t
 Initializing model...
 2018-10-06 AM 05:55:16.357: __main__: INFO: <module>(): args.model: ../models/daanzu-6h-512l-0001lr-425dr/output_graph.pb
@@ -69,7 +123,7 @@ Hit Ctrl-C to quit.
 ^CKeyboardInterrupt
 ```
 
-```
+```bash
 > python server.py -h
 usage: server.py [-h] -m MODEL [-a [ALPHABET]] [-l [LM]] [-t [TRIE]] [--lw LW]
                  [--vwcw VWCW] [--bw BW] [-p PORT]
@@ -99,7 +153,7 @@ optional arguments:
 
 ## Client
 
-```
+```bash
 λ py client.py
 Listening...
 Recognized: alpha bravo charlie
@@ -107,7 +161,7 @@ Recognized: delta echo foxtrot
 ^C
 ```
 
-```
+```bash
 λ py client.py -h
 usage: client.py [-h] [-s SERVER] [-a AGGRESSIVENESS] [--nospinner]
                  [-w SAVEWAV] [-d DEVICE] [-v]
@@ -133,9 +187,32 @@ optional arguments:
 
 ```
 
+### Audio File Processing
+Want to send a file directly to the server instead of from a live source?
+
+```bash
+# process a single file for text alone; must be wav file
+curl -X POST -F file=@../audio/8455-210777-0068.wav http://localhost:8787/recognize_file
+
+# process a single file with enhanced return; must be wav file
+curl -X POST -F file=@../audio/8455-210777-0068.wav -F enhanced=1 http://localhost:8787/recognize_file
+
+# process a single file with enhanced return; must be wav file (alternate with url-based parameter)
+curl -X POST -F file=@../audio/8455-210777-0068.wav http://localhost:8787/recognize_file?enhanced=1
+
+```
+
 ## Contributions
 
 Pull requests welcome.
 
 Contributors:
 * [@Zeddy913](https://github.com/Zeddy913)
+
+
+## Changes
+
+Coarse description of significant modifications as they come.
+
+- 190905 - add POST API for file endpoint; enhanced mode for server returns; launch server at `0.0.0.0` instead of localhost
+- 190903 - add device index for pyaudio so you can use other loopback devices (e.g. [MacOS Soundflower](https://github.com/mattingalls/Soundflower) )
