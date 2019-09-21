@@ -3,6 +3,7 @@ from datetime import datetime
 import threading, collections, queue, os, os.path
 import wave
 import pyaudio
+import pprint
 import webrtcvad
 from lomond import WebSocket, events
 from halo import Halo
@@ -61,6 +62,21 @@ class Audio(object):
         """Block looping reading, repeatedly passing a block of audio data to callback."""
         for block in iter(self):
             callback(block)
+
+    @staticmethod
+    def device_list():
+        """Iterate and return the audio devices in the system."""
+        local_pa = pyaudio.PyAudio()
+        device_info = { "Input":[], "Output":[] }
+        device_count = local_pa.get_device_count()
+        for idx_dev in range(device_count):
+            local_info = local_pa.get_device_info_by_index(idx_dev)
+            for local_type in ["Output", "Input"]:
+                local_channels = f"max{local_type}Channels"
+                if local_channels in local_info and local_info[local_channels] > 0:
+                    device_info[local_type].append({"device":idx_dev, "name":local_info["name"], 
+                                                    "channels":local_info[local_channels]})
+        return device_info
 
     def __iter__(self):
         """Generator that yields all audio blocks from microphone."""
@@ -210,7 +226,11 @@ def websocket_runner(websocket):
                 print_output("Connected!")
             ready = True
         elif isinstance(event, events.Text):
-            if 1: print_output("Recognized: %s" % event.text)
+            # TODO: modify for inclusion of timing information?
+            # TODO: what do we do with a rich / metadata return instead?
+            
+            if len(event.text): 
+                print_output("Recognized: %s" % event.text)
         elif 1:
             logging.debug(event)
 
@@ -222,15 +242,21 @@ def websocket_runner(websocket):
             websocket.close()
 
 def main():
-    websocket = WebSocket(ARGS.server)
-    # TODO: compress?
-    print_output("Connecting to '%s'..." % websocket.url)
+    if ARGS.listdevice:
+        dict_devices = Audio.device_list()
+        print_output("Available devices...")
+        print_output(pprint.pprint(dict_devices))
+        return 0
 
     vad_audio = VADAudio(aggressiveness=ARGS.aggressiveness, device_index=ARGS.device)
-    print_output("Listening (ctrl-C to exit)...")
+
+    websocket = WebSocket(ARGS.server)
+    # TODO: compress?
     audio_consumer_thread = threading.Thread(target=lambda: audio_consumer(vad_audio, websocket))
+    print_output("Listening (ctrl-C to exit)...")
     audio_consumer_thread.start()
 
+    print_output("Connecting to '%s'..." % websocket.url)
     websocket_runner(websocket)
 
 
@@ -266,6 +292,8 @@ if __name__ == '__main__':
         help="Set audio device for input, according to system. The default utilizes system-specified recording device.")
     parser.add_argument('-v', '--verbose', action='store_true',
         help="Print debugging info")
+    parser.add_argument('-l', '--listdevice', action='store_true',
+        help="List available devices for live capture")
     ARGS = parser.parse_args()
 
     if ARGS.verbose: logging.getLogger().setLevel(10)
