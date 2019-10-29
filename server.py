@@ -32,6 +32,8 @@ parser.add_argument('--bw', type=int, default=1024,
                     help='Beam width used in the CTC decoder when building candidate transcriptions. Default: 1024')
 parser.add_argument('-p', '--port', default=8080,
                     help='Port to run server on. Default: 8080')
+parser.add_argument('-host', '--host', default="127.0.0.1",
+                    help='Set IP Address to listen on default 127.0.0.1')
 parser.add_argument('--debuglevel', default=20,
                     help='Debug logging level. Default: 20')
 ARGS = parser.parse_args()
@@ -118,7 +120,4 @@ def recognize(ws):
 def index():
     return template('index')
 
-run(host='127.0.0.1', port=ARGS.port, server=GeventWebSocketServer)
-
-# python server.py --model ../models/daanzu-30330/output_graph.pb --alphabet ../models/daanzu-30330/alphabet.txt --lm ../models/daanzu-30330/lm.binary --trie ../models/daanzu-30330/trie
-# python server.py --model ../models/daanzu-30330.2/output_graph.pb --alphabet ../models/daanzu-30330.2/alphabet.txt --lm ../models/daanzu-30330.2/lm.binary --trie ../models/daanzu-30330.2/trie
+run(host=ARGS.host, port=ARGS.port, server=GeventWebSocketServer)
