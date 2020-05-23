@@ -45,10 +45,6 @@ if os.path.isdir(ARGS.model):
     model_dir = ARGS.model
     ARGS.model = os.path.join(model_dir, 'model.pbmm')
 
-if os.path.isdir(ARGS.scorer):
-    model_dir = ARGS.scorer
-    ARGS.model = os.path.join(model_dir, 'model.scorer')
-
 LM_WEIGHT = ARGS.lw
 VALID_WORD_COUNT_WEIGHT = ARGS.vwcw
 BEAM_WIDTH = ARGS.bw
