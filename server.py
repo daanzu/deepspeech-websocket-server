@@ -18,13 +18,14 @@ logging.basicConfig(level=20,
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-m', '--model', required=True,
                     help='Path to the model (protocol buffer binary file, or directory containing all files for model)')
+parser.add_argument('-s', '--scorer', help='The path to the scorer that adds an (optional) external language model to deepspeech')
 parser.add_argument('-a', '--alphabet', nargs='?', const='alphabet.txt',
                     help='Path to the configuration file specifying the alphabet used by the network. Default: alphabet.txt')
 parser.add_argument('-l', '--lm', nargs='?', const='lm.binary',
                     help='Path to the language model binary file. Default: lm.binary')
 parser.add_argument('-t', '--trie', nargs='?', const='trie',
                     help='Path to the language model trie file created with native_client/generate_trie. Default: trie')
-parser.add_argument('--lw', type=float, default=0.5,
+parser.add_argument('--lw', type=float, default=1.5,
                     help='The alpha hyperparameter of the CTC decoder. Language Model weight. Default: 1.5')
 parser.add_argument('--vwcw', type=float, default=2.25,
                     help='Valid word insertion weight. This is used to lessen the word insertion penalty when the inserted word is part of the vocabulary. Default: 2.25')
@@ -34,8 +35,6 @@ parser.add_argument('-p', '--port', default=8080,
                     help='Port to run server on. Default: 8080')
 parser.add_argument('--debuglevel', default=20,
                     help='Debug logging level. Default: 20')
-
-parser.add_argument('-s', '--scorer', help='The path to the scorer that adds an (optional) external language model')
 ARGS = parser.parse_args()
 
 logging.getLogger().setLevel(int(ARGS.debuglevel))
