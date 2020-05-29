@@ -18,6 +18,7 @@ logging.basicConfig(level=20,
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('-m', '--model', required=True,
                     help='Path to the model (protocol buffer binary file, or directory containing all files for model)')
+parser.add_argument('-s', '--scorer', help='The path to the scorer that adds an (optional) external language model to deepspeech')
 parser.add_argument('-a', '--alphabet', nargs='?', const='alphabet.txt',
                     help='Path to the configuration file specifying the alphabet used by the network. Default: alphabet.txt')
 parser.add_argument('-l', '--lm', nargs='?', const='lm.binary',
@@ -42,30 +43,27 @@ gSem = BoundedSemaphore(1)  # Only one Deepspeech instance available at a time
 
 if os.path.isdir(ARGS.model):
     model_dir = ARGS.model
-    ARGS.model = os.path.join(model_dir, 'output_graph.pb')
-    ARGS.alphabet = os.path.join(model_dir, ARGS.alphabet if ARGS.alphabet else 'alphabet.txt')
-    if ARGS.lm: ARGS.lm = os.path.join(model_dir, ARGS.lm)
-    if ARGS.trie: ARGS.trie = os.path.join(model_dir, ARGS.trie)
+    ARGS.model = os.path.join(model_dir, 'model.pbmm')
 
 LM_WEIGHT = ARGS.lw
 VALID_WORD_COUNT_WEIGHT = ARGS.vwcw
 BEAM_WIDTH = ARGS.bw
-N_FEATURES = 26
-N_CONTEXT = 9
 
 print('Initializing model...')
 logger.info("ARGS.model: %s", ARGS.model)
-logger.info("ARGS.alphabet: %s", ARGS.alphabet)
 
-model = deepspeech.Model(ARGS.model, N_FEATURES, N_CONTEXT, ARGS.alphabet, BEAM_WIDTH)
-if ARGS.lm and ARGS.trie:
-    logger.info("ARGS.lm: %s", ARGS.lm)
-    logger.info("ARGS.trie: %s", ARGS.trie)
-    model.enableDecoderWithLM(ARGS.alphabet,
-                              ARGS.lm,
-                              ARGS.trie,
-                              LM_WEIGHT,
-                              VALID_WORD_COUNT_WEIGHT)
+# code for version deepspech version 0.7 and above
+model = deepspeech.Model(ARGS.model)
+
+if ARGS.scorer:
+    model.enableExternalScorer(ARGS.scorer)
+    logger.info("ARGS.scorer: %s", ARGS.scorer)
+
+if ARGS.lw and ARGS.vwcw:
+    model.setScorerAlphaBeta(ARGS.lw, ARGS.vwcw)
+
+if ARGS.bw:
+    model.setBeamWidth(ARGS.bw)
 
 @get('/recognize', apply=[websocket])
 def recognize(ws):
@@ -82,18 +80,18 @@ def recognize(ws):
             if not start_time:
                 # Start of stream (utterance)
                 start_time = time()
-                sctx = model.setupStream()
+                stream = model.createStream()
                 assert not gSem_acquired
                 # logger.debug("acquiring lock for deepspeech ...")
                 gSem.acquire(blocking=True)
                 gSem_acquired = True
                 # logger.debug("lock acquired")
-            model.feedAudioContent(sctx, np.frombuffer(data, np.int16))
+            stream.feedAudioContent(np.frombuffer(data, np.int16))
 
         elif isinstance(data, str) and data == 'EOS':
             # End of stream (utterance)
             eos_time = time()
-            text = model.finishStream(sctx)
+            text = stream.finishStream()
             logger.info("recognized: %r", text)
             logger.info("    time: total=%s post_eos=%s", time()-start_time, time()-eos_time)
             ws.send(text)
