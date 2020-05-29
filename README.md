@@ -13,10 +13,10 @@ Work in progress. Developed to quickly test new models running DeepSpeech in [Wi
 ## Features
 
 * Server
-    - Streams raw audio data from client via WebSocket
+    - Tested and works with DeepSpeech v0.7 (thanks [@Kai-Karren](https://github.com/Kai-Karren))
     - Streaming inference via DeepSpeech v0.2+
+    - Streams raw audio data from client via WebSocket
     - Multi-user (only decodes one stream at a time, but can block until decoding is available)
-    - Tested and works with DeepSpeech v0.5.1 on Windows
 * Client
     - Streams raw audio data from microphone to server via WebSocket
     - Voice activity detection (VAD) to ignore noise and segment microphone input into separate utterances
